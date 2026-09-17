@@ -1,4 +1,6 @@
 import nltk
+os.environ['NLTK_ALLOW_PROXIED_URLOPEN'] = '1'
+nltk.pathsec.ALLOW_PROXIED_FETCH = True
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 import re
