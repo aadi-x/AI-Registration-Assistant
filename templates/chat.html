@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Registration Assistant - Chat</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .header {
+            background: rgba(0,0,0,0.3);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .header h1 { font-size: 1.3rem; color: #00d2ff; }
+        .header button {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            border: 1px solid rgba(255,255,255,0.2);
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        .header button:hover { background: rgba(255,255,255,0.2); }
+        .chat-container {
+            flex: 1;
+            max-width: 800px;
+            width: 100%;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+        }
+        .chat-box {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .message {
+            max-width: 80%;
+            padding: 12px 18px;
+            border-radius: 18px;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            animation: fadeIn 0.3s;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .assistant-message {
+            background: rgba(58, 123, 213, 0.2);
+            border: 1px solid rgba(58, 123, 213, 0.3);
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+        }
+        .user-message {
+            background: linear-gradient(90deg, #00d2ff, #3a7bd5);
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+        .system-message {
+            background: rgba(255,255,255,0.05);
+            align-self: center;
+            font-size: 0.8rem;
+            opacity: 0.6;
+            text-align: center;
+            max-width: 95%;
+        }
+        .input-area {
+            display: flex;
+            gap: 10px;
+            padding: 20px;
+            background: rgba(0,0,0,0.3);
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+        .input-area input {
+            flex: 1;
+            padding: 12px 20px;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 25px;
+            background: rgba(255,255,255,0.05);
+            color: #fff;
+            font-size: 1rem;
+            outline: none;
+        }
+        .input-area input::placeholder { color: rgba(255,255,255,0.4); }
+        .input-area input:focus { border-color: #00d2ff; }
+        .input-area button {
+            padding: 12px 24px;
+            background: linear-gradient(90deg, #00d2ff, #3a7bd5);
+            color: #fff;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: transform 0.2s;
+        }
+        .input-area button:hover { transform: scale(1.05); }
+        .typing-indicator {
+            align-self: flex-start;
+            padding: 12px 18px;
+            background: rgba(58, 123, 213, 0.2);
+            border-radius: 18px;
+            border-bottom-left-radius: 4px;
+            display: none;
+        }
+        .typing-indicator span {
+            display: inline-block;
+            width: 8px; height: 8px;
+            background: rgba(255,255,255,0.5);
+            border-radius: 50%;
+            margin: 0 2px;
+            animation: bounce 1.4s infinite ease-in-out;
+        }
+        .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes bounce {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-10px); }
+        }
+        .sidebar-info {
+            background: rgba(255,255,255,0.05);
+            padding: 10px 20px;
+            font-size: 0.8rem;
+            opacity: 0.6;
+            text-align: center;
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
+        @media (max-width: 600px) {
+            .message { max-width: 90%; }
+            .header h1 { font-size: 1rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🤖 AI Registration Assistant</h1>
+        <button onclick="resetChat()">🔄 Reset</button>
+    </div>
+    <div class="chat-container">
+        <div class="chat-box" id="chatBox">
+            <div class="message assistant-message" id="welcome">
+                👋 Hello! Welcome to the AI Registration Assistant.<br>
+                I'll guide you through the internship registration process.<br><br>
+                You can start by saying <strong>"Register"</strong> or <strong>"Apply"</strong>!
+            </div>
+        </div>
+        <div class="typing-indicator" id="typing">
+            <span></span><span></span><span></span>
+        </div>
+        <div class="input-area">
+            <input type="text" id="userInput" placeholder="Type your message..." autocomplete="off">
+            <button onclick="sendMessage()">Send</button>
+        </div>
+        <div class="sidebar-info" id="statusInfo">
+            State: Greeting | Registration Data: None
+        </div>
+    </div>
+    <script>
+        const chatBox = document.getElementById('chatBox');
+        const userInput = document.getElementById('userInput');
+        const typing = document.getElementById('typing');
+        const statusInfo = document.getElementById('statusInfo');
+
+        userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        async function sendMessage() {
+            const message = userInput.value.trim();
+            if (!message) return;
+
+            addMessage(message, 'user');
+            userInput.value = '';
+            typing.style.display = 'block';
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: message })
+                });
+                const data = await response.json();
+                typing.style.display = 'none';
+                addMessage(data.response, 'assistant');
+                updateStatus(data);
+            } catch (error) {
+                typing.style.display = 'none';
+                addMessage('Sorry, something went wrong. Please try again.', 'assistant');
+            }
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function addMessage(text, type) {
+            const msg = document.createElement('div');
+            msg.className = `message ${type}-message`;
+            msg.innerHTML = text.replace(/\n/g, '<br>');
+            chatBox.appendChild(msg);
+        }
+
+        function updateStatus(data) {
+            const state = data.intent || 'unknown';
+            const regData = data.registration_data || {};
+            const keys = Object.keys(regData);
+            const regStr = keys.length > 0 ? keys.map(k => `${k}: ${regData[k]}`).join(', ') : 'None';
+            statusInfo.textContent = `State: ${state} | Registration Data: ${regStr}`;
+        }
+
+        async function resetChat() {
+            await fetch('/api/reset', { method: 'POST' });
+            chatBox.innerHTML = `
+                <div class="message assistant-message">
+                    👋 Conversation reset! Welcome back. Start by saying <strong>"Register"</strong>!
+                </div>
+            `;
+            statusInfo.textContent = 'State: Greeting | Registration Data: None';
+        }
+    </script>
+</body>
+</html>

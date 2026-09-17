@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rescue Robot - Live Dashboard</title>
+  <style>
+    body { font-family: monospace; background: #0b0f14; color: #e6e6e6; margin: 0; padding: 12px; }
+    h1 { color: #4fc3f7; }
+    .grid { display: flex; flex-wrap: wrap; gap: 16px; }
+    .card { background: #151b22; border: 1px solid #263238; border-radius: 10px; padding: 14px; min-width: 260px; }
+    .big { font-size: 26px; font-weight: bold; }
+    .HIGH { color: #ff5252; } .MEDIUM { color: #ffb300; } .LOW { color: #69f0ae; }
+    img { width: 100%; max-width: 480px; border-radius: 8px; border: 1px solid #263238; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border-bottom: 1px solid #263238; padding: 6px; text-align: left; font-size: 13px; }
+    th { color: #4fc3f7; }
+  </style>
+</head>
+<body>
+  <h1>🤖 Rescue Robot — Live Command Dashboard</h1>
+  <div class="grid">
+    <div class="card">
+      <div>Live Feed (YOLO)</div>
+      <img id="feed" src="/frame.jpg" />
+    </div>
+    <div class="card">
+      <div>📍 GPS</div><div class="big" id="gps">—</div>
+      <div>🌡 Temperature</div><div class="big" id="temp">—</div>
+      <div>🕒 Date/Time</div><div class="big" id="dt" style="font-size:16px">—</div>
+      <div>⚠ Critical Score</div><div class="big" id="crit">0.0</div>
+      <div>🚨 Urgency</div><div class="big" id="urg">—</div>
+    </div>
+    <div class="card">
+      <div>🎙 Survivor Voice (NLP)</div>
+      <div id="voice" style="white-space:pre-wrap;margin-top:8px">Waiting...</div>
+      <div style="margin-top:10px">🔎 Detected Objects</div>
+      <div id="objs" style="margin-top:6px">—</div>
+    </div>
+  </div>
+
+  <h2 style="color:#4fc3f7">📜 Telemetry History</h2>
+  <table id="hist">
+    <thead><tr><th>Time</th><th>GPS</th><th>Temp</th><th>Crit</th><th>Urgency</th><th>Voice</th></tr></thead>
+    <tbody></tbody>
+  </table>
+
+<script>
+function refreshFeed() {
+  document.getElementById('feed').src = "/frame.jpg?" + Date.now();
+}
+setInterval(refreshFeed, 1000);
+
+const es = new EventSource("/stream");
+es.onmessage = e => {
+  const d = JSON.parse(e.data);
+  document.getElementById('gps').textContent =
+    (d.lat != null ? d.lat.toFixed(5) : '?') + ", " + (d.lon != null ? d.lon.toFixed(5) : '?');
+  document.getElementById('temp').textContent = (d.temperature ?? '—') + " °C";
+  document.getElementById('dt').textContent = d.timestamp || "—";
+  document.getElementById('crit').textContent = d.critical_score ?? 0;
+  const urg = document.getElementById('urg');
+  urg.textContent = d.urgency || "—";
+  urg.className = "big " + (d.urgency || "");
+  document.getElementById('voice').textContent = d.voice_text || "Waiting...";
+  document.getElementById('objs').textContent =
+    (d.detections && d.detections.length)
+      ? d.detections.map(x => x.class + " (" + x.confidence + ")").join(", ")
+      : "none";
+};
+
+async function loadHistory() {
+  const rows = await fetch("/api/history").then(r => r.json());
+  const tb = document.querySelector("#hist tbody");
+  tb.innerHTML = rows.map(r => `<tr>
+    <td>${r.ts}</td>
+    <td>${r.lat},${r.lon}</td>
+    <td>${r.temperature}</td>
+    <td>${r.critical_score}</td>
+    <td class="${r.urgency}">${r.urgency}</td>
+    <td>${r.voice_text || ''}</td>
+  </tr>`).join("");
+}
+loadHistory();
+setInterval(loadHistory, 5000);
+</script>
+</body>
+</html>

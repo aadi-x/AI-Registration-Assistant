@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Robot Capture - Camera / GPS / Voice</title>
+  <style>
+    body { font-family: sans-serif; margin: 0; background: #111; color: #eee; }
+    video, canvas { width: 100%; max-width: 480px; display: block; margin: 8px auto; }
+    .box { padding: 10px; text-align: center; }
+    button { padding: 12px 18px; font-size: 16px; margin: 6px; border-radius: 8px; border: 0; }
+    .on { background: #2e7d32; color: #fff; }
+    .off { background: #c62828; color: #fff; }
+    #status { font-size: 14px; color: #9f9; white-space: pre-line; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h2>🤖 Rescue Robot - Field Unit</h2>
+    <video id="video" autoplay playsinline muted></video>
+    <canvas id="canvas" style="display:none"></canvas>
+    <div>
+      <button id="startCam" class="on">Start Camera</button>
+      <button id="startVoice" class="off">Start Voice</button>
+    </div>
+    <div id="status">Initializing...</div>
+  </div>
+
+<script>
+const video = document.getElementById('video');
+const canvas = document.getElementById('canvas');
+const statusEl = document.getElementById('status');
+const startCam = document.getElementById('startCam');
+const startVoice = document.getElementById('startVoice');
+
+let streaming = false;
+let lat = null, lon = null;
+let lastVoice = "";
+
+// ---- Camera ----
+startCam.onclick = async () => {
+  if (!streaming) {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' } }, audio: false
+    });
+    video.srcObject = stream;
+    streaming = true;
+    startCam.textContent = "Stop Camera";
+    startCam.className = "off";
+    statusEl.textContent = "Camera live. Sending frames + GPS...";
+    watchGPS();
+    sendLoop();
+  } else {
+    streaming = false;
+    startCam.textContent = "Start Camera";
+    startCam.className = "on";
+  }
+};
+
+// ---- GPS ----
+function watchGPS() {
+  if (!navigator.geolocation) { statusEl.textContent += "\nGPS not supported"; return; }
+  navigator.geolocation.watchPosition(
+    p => { lat = p.coords.latitude; lon = p.coords.longitude; },
+    e => { statusEl.textContent += "\nGPS error: " + e.message; },
+    { enableHighAccuracy: true, maximumAge: 1000 }
+  );
+}
+
+// ---- Voice (Web Speech API -> NLP on server) ----
+let recognition = null;
+startVoice.onclick = () => {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { statusEl.textContent += "\nSpeech API not supported"; return; }
+  if (recognition) { recognition.stop(); recognition = null;
+    startVoice.textContent = "Start Voice"; startVoice.className = "off"; return; }
+  recognition = new SR();
+  recognition.continuous = true;
+  recognition.interimResults = false;
+  recognition.lang = "en-US";
+  recognition.onresult = e => {
+    const text = e.results[e.results.length - 1][0].transcript.trim();
+    lastVoice = text;
+    statusEl.textContent += "\n🎙 Survivor: " + text;
+  };
+  recognition.start();
+  startVoice.textContent = "Stop Voice";
+  startVoice.className = "on";
+};
+
+// ---- Main send loop ----
+async function sendLoop() {
+  while (streaming) {
+    if (video.videoWidth > 0) {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext('2d').drawImage(video, 0, 0);
+      canvas.toBlob(async (blob) => {
+        const fd = new FormData();
+        fd.append("image", blob, "frame.jpg");
+        try {
+          const det = await fetch("/detect", { method: "POST", body: fd })
+                            .then(r => r.json());
+          const tel = await fetch("/telemetry", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ lat, lon, voice_text: lastVoice })
+          }).then(r => r.json());
+          statusEl.textContent =
+            `📍 ${lat ? lat.toFixed(5) : '?'}, ${lon ? lon.toFixed(5) : '?'}\n` +
+            `🌡 Temp: ${tel.temperature}°C   🕒 ${tel.datetime}\n` +
+            `⚠ Critical: ${tel.critical_score} (${tel.urgency})\n` +
+            `🔎 Objects: ` + (det.detections.map(d => d.class).join(", ") || "none") +
+            (lastVoice ? `\n🎙 ${lastVoice}` : "");
+        } catch (err) {
+          statusEl.textContent = "Send error: " + err;
+        }
+      }, "image/jpeg", 0.7);
+    }
+    await new Promise(r => setTimeout(r, 2000));  // 2s cycle
+  }
+}
+</script>
+</body>
+</html>

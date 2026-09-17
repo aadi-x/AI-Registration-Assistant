@@ -1,0 +1,22 @@
+[
+  {
+    "registration_id": "REG-20260917230347",
+    "timestamp": "2026-09-17T23:03:47.955793"
+  },
+  {
+    "name": "John",
+    "email": "john@gmail.com",
+    "field": "Computer Science",
+    "experience": "Intermediate",
+    "registration_id": "REG-20260917230453",
+    "timestamp": "2026-09-17T23:04:53.061394"
+  },
+  {
+    "name": "John",
+    "email": "john@test.com",
+    "field": "CS",
+    "experience": "Intermediate",
+    "registration_id": "REG-20260917230538",
+    "timestamp": "2026-09-17T23:05:38.683878"
+  }
+]
