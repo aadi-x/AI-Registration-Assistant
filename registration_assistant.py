@@ -1,3 +1,4 @@
+import os
 import nltk
 os.environ['NLTK_ALLOW_PROXIED_URLOPEN'] = '1'
 nltk.pathsec.ALLOW_PROXIED_FETCH = True
@@ -6,7 +7,6 @@ from nltk.stem import WordNetLemmatizer
 import re
 import json
 import datetime
-import os
 
 nltk.download('punkt', quiet=True)
 nltk.download('stopwords', quiet=True)
