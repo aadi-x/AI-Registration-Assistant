@@ -7,3 +7,10 @@ registrations.json
 venv/
 *.db
 *.log
+robo_rescue_system/
+index.html
+css/
+js/
+linear_regression_house_prices.py
+submission.csv
+tabdiag_tmp.html

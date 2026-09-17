@@ -1,6 +1,0 @@
-flask
-ultralytics
-opencv-python
-numpy
-requests
-pymongo   # optional, for MongoDB upgrade
